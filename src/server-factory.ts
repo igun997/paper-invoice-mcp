@@ -448,6 +448,58 @@ const tools: Tool[] = [
       required: ['invoiceId'],
     },
   },
+  {
+    name: 'paperid_publish_invoice',
+    description: 'Change invoice status (Draft → Posted/Unpaid, or other transitions). GET /api/v1/invoicer/invoice/change-status/{uuid}/{status_code}',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        invoiceId: { type: 'string', description: 'Invoice UUID' },
+        statusCode: { type: 'number', description: '0=posted/unpaid, 4=draft, 5=cancelled (default: 0)' },
+      },
+      required: ['invoiceId'],
+    },
+  },
+  {
+    name: 'paperid_update_invoice',
+    description: 'Update an existing sales invoice (multipart/form-data). POST /api/v1/invoicer/sales-invoices/{uuid}',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        invoiceId: { type: 'string', description: 'Invoice UUID' },
+        partner_id: { type: 'string', description: 'Partner UUID' },
+        partner_name: { type: 'string', description: 'Partner name (display)' },
+        number: { type: 'string', description: 'Invoice number' },
+        invoice_date: { type: 'string', description: 'Invoice date YYYY-MM-DD' },
+        due_date: { type: 'string', description: 'Due date YYYY-MM-DD' },
+        items: {
+          type: 'array',
+          description: 'Line items',
+          items: {
+            type: 'object',
+            properties: {
+              item_name: { type: 'string' },
+              item_description: { type: 'string' },
+              quantity: { type: 'number' },
+              price: { type: 'number' },
+              discount: { type: 'number', description: 'Per-item discount percentage 0-100' },
+              tax_id: { type: 'string' },
+            },
+            required: ['item_name', 'quantity', 'price'],
+          },
+        },
+        notes: { type: 'string', description: 'Keterangan (plain text or HTML)' },
+        terms: { type: 'string', description: 'Syarat & Ketentuan (plain text or HTML)' },
+        currency: { type: 'string', description: 'Currency symbol default Rp' },
+        discount: { type: 'number', description: 'Overall discount amount' },
+        delivery_fee: { type: 'number' },
+        status: { type: 'number', description: '4=draft, 0=normal' },
+        signature_text_header: { type: 'string' },
+        signature_text_footer: { type: 'string' },
+      },
+      required: ['invoiceId', 'partner_id', 'partner_name', 'number', 'invoice_date', 'due_date', 'items'],
+    },
+  },
 ];
 
 // ─── Resources ─────────────────────────────────────────────────────────────
@@ -743,12 +795,20 @@ Pre-formed HTML passed through unchanged if starts with \`<\`.
 ## Invoice Status Codes
 | Value | Meaning |
 |---|---|
-| \`0\` | Normal (published) |
+| \`0\` | Normal (published/unpaid) |
 | \`1\` | Paid |
 | \`2\` | Partial paid |
 | \`3\` | Overdue |
 | \`4\` | Draft |
 | \`5\` | Cancelled |
+
+## Publish Invoice (Draft → Posted)
+Use \`paperid_publish_invoice\` — calls \`GET /api/v1/invoicer/invoice/change-status/{uuid}/{statusCode}\`.  
+No body. Status code in URL. \`0\`=posted, \`4\`=draft, \`5\`=cancelled.
+
+## Update Invoice
+Use \`paperid_update_invoice\` — same fields as create plus required \`invoiceId\`.  
+Calls \`POST /api/v1/invoicer/sales-invoices/{uuid}\` with multipart/form-data.
 
 ## Send Invoice
 \`\`\`json
@@ -782,6 +842,8 @@ Returns QR code data for QRIS payment.
 | Send | POST | \`/api/v1/invoicer/sales-invoices/send-all/{id}\` |
 | QRIS | POST | \`/api/v1/invoicer/sales-invoices/{id}/qris\` |
 | Delete | DELETE | \`/api/v1/invoicer/sales-invoices/{id}\` |
+| Update | POST | \`/api/v1/invoicer/sales-invoices/{id}\` (multipart) |
+| Publish/Status | GET | \`/api/v1/invoicer/invoice/change-status/{id}/{status_code}\` |
 `,
 
   'paperid://docs/jwt-only': `# JWT-Only Setup
@@ -1275,6 +1337,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'paperid_delete_invoice': {
         const { invoiceId } = args as { invoiceId: string };
         const result = await client.deleteInvoice(invoiceId);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_publish_invoice': {
+        const { invoiceId, statusCode } = args as { invoiceId: string; statusCode?: number };
+        const result = await client.publishInvoice(invoiceId, statusCode ?? 0);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_update_invoice': {
+        const { invoiceId, ...data } = args as { invoiceId: string; [key: string]: any };
+        const result = await client.updateInvoice(invoiceId, data as any);
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
       }
 

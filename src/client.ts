@@ -547,6 +547,110 @@ export class PaperIdClient {
     return response.data;
   }
 
+  async publishInvoice(invoiceId: string, statusCode: number = 0) {
+    this.ensureAuth();
+    // GET /api/v1/invoicer/invoice/change-status/{uuid}/{status_code}
+    // No body — status code in URL path
+    // 0=posted/unpaid, 4=draft, 5=cancelled
+    const response = await this.axios.get(
+      `/api/v1/invoicer/invoice/change-status/${invoiceId}/${statusCode}`
+    );
+    return response.data;
+  }
+
+  async updateInvoice(invoiceId: string, data: {
+    partner_id: string;
+    partner_name: string;
+    number: string;
+    invoice_date: string;
+    due_date: string;
+    items: Array<{
+      item_name: string;
+      item_description?: string;
+      quantity: number;
+      price: number;
+      discount?: number;
+      tax_id?: string | null;
+    }>;
+    notes?: string;
+    terms?: string;
+    currency?: string;
+    discount?: number;
+    delivery_fee?: number;
+    status?: number;
+    signature_text_header?: string;
+    signature_text_footer?: string;
+  }) {
+    this.ensureAuth();
+
+    const makeUuid = () =>
+      'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+      });
+
+    const items = data.items.map((item) => ({
+      uuid: makeUuid(),
+      item_name: item.item_name,
+      item_description: item.item_description || '',
+      quantity: String(item.quantity),
+      price: item.price,
+      discount: item.discount || 0,
+      total: item.price * item.quantity,
+      product_id: null,
+      tax_id: item.tax_id || null,
+      tax_total: 0,
+      tax_exclusive: null,
+      is_negative_value: null,
+      product: null,
+      custom_field: null,
+      is_hide: false,
+      discount_per_qty: null,
+      total_without_additional_fee: item.price * item.quantity,
+      net_total: item.price * item.quantity,
+      total_before_tax: item.price * item.quantity,
+    }));
+
+    const toHtml = (text?: string) => {
+      if (!text) return '';
+      if (text.startsWith('<')) return text;
+      return text.split('\n').map(line => `<p>${line || '<br>'}</p>`).join('');
+    };
+
+    const form = new (globalThis as any).FormData();
+    form.append('uuid', invoiceId);
+    form.append('partner_id', data.partner_id);
+    form.append('partner_name', data.partner_name);
+    form.append('client_name', '');
+    form.append('invoice_date', data.invoice_date);
+    form.append('due_date', data.due_date);
+    form.append('status', String(data.status ?? 0));
+    form.append('number', data.number);
+    form.append('currency', data.currency || 'Rp');
+    form.append('discount', String(data.discount || 0));
+    form.append('delivery_fee', String(data.delivery_fee || 0));
+    form.append('notes', toHtml(data.notes));
+    form.append('terms', toHtml(data.terms));
+    form.append('sent', '0');
+    form.append('signature_text_header', data.signature_text_header || '');
+    form.append('signature_text_footer', data.signature_text_footer || '');
+    form.append('document_id', '');
+    form.append('document_type_id', '');
+    form.append('document_no', '');
+    form.append('action', '');
+    form.append('invoice_items', JSON.stringify(items));
+    form.append('items', JSON.stringify(items));
+    form.append('is_top_plus', '0');
+    form.append('document_reference', '');
+    form.append('stamped_pdf', '');
+
+    const response = await this.axios.post(
+      `/api/v1/invoicer/sales-invoices/${invoiceId}`,
+      form
+    );
+    return response.data;
+  }
+
   async searchPartners(nameFilter: string = '', first: number = 0, rows: number = 50, type?: string) {
     this.ensureAuth();
     const response = await this.axios.post('/api/v1/earth/partners/all', {
