@@ -660,6 +660,98 @@ const tools: Tool[] = [
       properties: { categoryId: { type: 'string' } },
     },
   },
+  // ─── Stock / Inventory (Produk & Stok) ───────────────────────────────────────────
+  {
+    name: 'paperid_get_stock_locations',
+    description: 'List all stock locations (warehouses). GET /api/v1/inventory/locations',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'paperid_get_stock_type_locations',
+    description: 'List stock-type locations only (where products can be stored). GET /api/v1/inventory/locations/types/stock',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'paperid_get_stock_documents',
+    description: 'List stock documents (Dokumen Stok). POST /api/v1/inventory/stock-documents-all. Types: gr=Penerimaan Barang, do=Surat Jalan, sa=Penyesuaian Stok, sc=Stok Opname.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        first:       { type: 'number', description: 'Offset (default: 0)' },
+        rows:        { type: 'number', description: 'Page size (default: 10)' },
+        document_no: { type: 'string', description: 'Filter by document number' },
+        type:        { type: 'string', description: 'Filter by type: gr/do/sa/sc' },
+        status:      { type: 'string', description: 'Filter by status' },
+        global:      { type: 'string', description: 'Full-text search' },
+      },
+    },
+  },
+  {
+    name: 'paperid_get_next_stock_document_number',
+    description: 'Get next auto-generated stock document number. GET /api/v1/inventory/stock-documents/next-number/{type}. Types: gr (Penerimaan Barang GR/YYYY/NNNN), do (Surat Jalan DO/YYYY/NNNN), sa (Penyesuaian Stok SA/YYYY/NNNN), sc (Stok Opname SC/YYYY/NNNN).',
+    inputSchema: {
+      type: 'object',
+      required: ['type'],
+      properties: {
+        type: { type: 'string', enum: ['gr', 'do', 'sa', 'sc'], description: 'Document type' },
+      },
+    },
+  },
+  {
+    name: 'paperid_get_tracked_products',
+    description: 'List products with stock tracking enabled (track_stock=1). POST /api/v1/inventory/products/tracked. Only tracked products can be used in stock documents.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'paperid_get_inventory',
+    description: 'List inventory (Persediaan) — current stock levels per product. POST /api/v2/saturn/products/fifo/all.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        first: { type: 'number', description: 'Offset (default: 0)' },
+        rows:  { type: 'number', description: 'Page size (default: 10)' },
+        name:  { type: 'string', description: 'Filter by product name' },
+        code:  { type: 'string', description: 'Filter by product code (SKU)' },
+      },
+    },
+  },
+  {
+    name: 'paperid_get_stock_dashboard',
+    description: 'Get stock dashboard card info. POST /api/v1/inventory/dashboard/get-card-info. data_type: gr=Penerimaan Barang (goods receipt), do=Surat Jalan (delivery order).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        start_date:  { type: 'string', description: 'Start date (YYYY-MM-DD). Default: today' },
+        end_date:    { type: 'string', description: 'End date (YYYY-MM-DD). Default: today' },
+        data_type:   { type: 'string', enum: ['gr', 'do'], description: 'gr=Penerimaan Barang, do=Surat Jalan. Default: gr' },
+        location_id: { type: 'string', description: 'Filter by location UUID (empty = all locations)' },
+      },
+    },
+  },
+  {
+    name: 'paperid_get_inventory_settings',
+    description: 'Get inventory meta settings (direct_purchase/sales defaults, default locations). GET /api/v1/inventory/inventory-meta-settings.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'paperid_update_product_track_stock',
+    description: 'Enable or disable stock tracking on a product. PUT /api/v1/saturn/products/{uuid}. Products must have track_stock=true to appear in stock documents.',
+    inputSchema: {
+      type: 'object',
+      required: ['productId', 'trackStock', 'name', 'code', 'uomId'],
+      properties: {
+        productId:     { type: 'string', description: 'Product UUID' },
+        trackStock:    { type: 'boolean', description: 'Enable (true) or disable (false) stock tracking' },
+        name:          { type: 'string', description: 'Product name (required for full update)' },
+        code:          { type: 'string', description: 'Product code/SKU (required for full update)' },
+        uomId:         { type: 'string', description: 'Unit of measure UUID. Default Piece: 05429f81-f62e-41cd-ba00-2c4245c060e7' },
+        salesPrice:    { type: 'number', description: 'Sales price' },
+        purchasePrice: { type: 'number', description: 'Purchase price' },
+        description:   { type: 'string' },
+        categoryId:    { type: 'string', description: 'Product category UUID' },
+      },
+    },
+  },
   {
     name: 'paperid_get_partner',
     description: 'Get a single partner by UUID',
@@ -1897,6 +1989,58 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'paperid_delete_uom_category': {
         const { categoryId } = args as { categoryId: string };
         const result = await client.deleteUomCategory(categoryId);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_stock_locations': {
+        const result = await client.getStockLocations();
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_stock_type_locations': {
+        const result = await client.getStockTypeLocations();
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_stock_documents': {
+        const { first, rows, document_no, type, status, global: g } = args as any;
+        const result = await client.getStockDocuments({ first, rows, document_no, type, status, global: g });
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_next_stock_document_number': {
+        const { type } = args as { type: 'gr' | 'do' | 'sa' | 'sc' };
+        const result = await client.getNextStockDocumentNumber(type);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_tracked_products': {
+        const result = await client.getTrackedProducts();
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_inventory': {
+        const { first, rows, name, code } = args as any;
+        const result = await client.getInventory({ first, rows, name, code });
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_stock_dashboard': {
+        const { start_date, end_date, data_type, location_id } = args as any;
+        const result = await client.getStockDashboard({ start_date, end_date, data_type, location_id });
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_inventory_settings': {
+        const result = await client.getInventorySettings();
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_update_product_track_stock': {
+        const { productId, trackStock, name, code, uomId, salesPrice, purchasePrice, description, categoryId } = args as any;
+        const result = await client.updateProductTrackStock(productId, trackStock, {
+          name, code, uom_id: uomId, sales_price: salesPrice, purchase_price: purchasePrice, description, category_id: categoryId,
+        });
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
       }
 

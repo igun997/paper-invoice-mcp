@@ -125,6 +125,16 @@ const EXPECTED_TOOLS = [
   'paperid_create_uom_category',
   'paperid_update_uom_category',
   'paperid_delete_uom_category',
+  // stock tools
+  'paperid_get_stock_locations',
+  'paperid_get_stock_type_locations',
+  'paperid_get_stock_documents',
+  'paperid_get_next_stock_document_number',
+  'paperid_get_tracked_products',
+  'paperid_get_inventory',
+  'paperid_get_stock_dashboard',
+  'paperid_get_inventory_settings',
+  'paperid_update_product_track_stock',
 ];
 
 // ─── Tests ───────────────────────────────────────────────────────────────────

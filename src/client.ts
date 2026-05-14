@@ -1216,7 +1216,10 @@ export class PaperIdClient {
   /** Get single UoM category. Endpoint: GET /api/v1/saturn/uom-category/{uuid} */
   async getUomCategory(categoryId: string) {
     this.ensureAuth();
-    const response = await this.axios.get(`/api/v1/saturn/uom-category/${categoryId}`);
+    // Saturn service returns 405 status but valid body — use validateStatus to accept it
+    const response = await this.axios.get(`/api/v1/saturn/uom-category/${categoryId}`, {
+      validateStatus: (s) => s < 500,
+    });
     return response.data;
   }
 
@@ -1247,6 +1250,166 @@ export class PaperIdClient {
   async deleteUomCategory(categoryId: string) {
     this.ensureAuth();
     const response = await this.axios.delete(`/api/v1/saturn/uom-category/${categoryId}`);
+    return response.data;
+  }
+
+  // ─── Stock / Inventory ────────────────────────────────────────────────────────
+
+  /**
+   * List all stock locations. Endpoint: GET /api/v1/inventory/locations
+   * Returns locations with type: stock, supplier, customer, etc.
+   */
+  async getStockLocations() {
+    this.ensureAuth();
+    const response = await this.axios.get('/api/v1/inventory/locations');
+    return response.data;
+  }
+
+  /**
+   * List stock-type locations. Endpoint: GET /api/v1/inventory/locations/types/stock
+   * Only locations where products can be received into stock.
+   */
+  async getStockTypeLocations() {
+    this.ensureAuth();
+    const response = await this.axios.get('/api/v1/inventory/locations/types/stock');
+    return response.data;
+  }
+
+  /**
+   * List stock documents (Dokumen Stok). Endpoint: POST /api/v1/inventory/stock-documents-all
+   * Filter by type: gr=Penerimaan, do=Surat Jalan, sa=Penyesuaian, sc=Stok Opname
+   */
+  async getStockDocuments(opts: {
+    first?: number;
+    rows?: number;
+    document_no?: string;
+    type?: string;
+    status?: string;
+    global?: string;
+  } = {}) {
+    this.ensureAuth();
+    const body = {
+      filters: {
+        document_no: { matchMode: 'undefined', value: opts.document_no ?? '' },
+        global:      { matchMode: 'undefined', value: opts.global ?? '' },
+        date:        { matchMode: 'undefined', value: '' },
+        type:        { matchMode: 'undefined', value: opts.type ?? '' },
+        status:      { matchMode: 'undefined', value: opts.status ?? '' },
+        name:        { matchMode: 'undefined', value: '' },
+        entry_no:    { matchMode: 'undefined', value: '' },
+        object_tags: { matchMode: 'undefined', value: [] },
+      },
+      first: opts.first ?? 0,
+      rows: opts.rows ?? 10,
+      sortOrder: '-1',
+      sortField: 'created_at',
+      file_type: 'csv',
+    };
+    const response = await this.axios.post('/api/v1/inventory/stock-documents-all', body);
+    return response.data;
+  }
+
+  /**
+   * Get next stock document number. Endpoint: GET /api/v1/inventory/stock-documents/next-number/{type}
+   * Types: gr (Penerimaan Barang), do (Surat Jalan), sa (Penyesuaian Stok), sc (Stok Opname)
+   */
+  async getNextStockDocumentNumber(type: 'gr' | 'do' | 'sa' | 'sc') {
+    this.ensureAuth();
+    const response = await this.axios.get(`/api/v1/inventory/stock-documents/next-number/${type}`);
+    return response.data;
+  }
+
+  /**
+   * List products with track_stock enabled. Endpoint: POST /api/v1/inventory/products/tracked
+   * Only products with track_stock=1 appear here and can be used in stock documents.
+   */
+  async getTrackedProducts() {
+    this.ensureAuth();
+    const response = await this.axios.post('/api/v1/inventory/products/tracked', {});
+    return response.data;
+  }
+
+  /**
+   * Get inventory/stock list (Persediaan). Endpoint: POST /api/v2/saturn/products/fifo/all
+   * Returns products with current stock quantity and value.
+   */
+  async getInventory(opts: { first?: number; rows?: number; name?: string; code?: string } = {}) {
+    this.ensureAuth();
+    const body = {
+      filters: {
+        global: { matchMode: 'undefined', value: '' },
+        name:   { matchMode: 'undefined', value: opts.name ?? '' },
+        code:   { matchMode: 'undefined', value: opts.code ?? '' },
+      },
+      first: opts.first ?? 0,
+      rows: opts.rows ?? 10,
+      sortOrder: -1,
+      sortField: 'created_at',
+    };
+    const response = await this.axios.post('/api/v2/saturn/products/fifo/all', body);
+    return response.data;
+  }
+
+  /**
+   * Get stock dashboard card info. Endpoint: POST /api/v1/inventory/dashboard/get-card-info
+   * data_type: 'gr' (Penerimaan Barang) or 'do' (Surat Jalan/Delivery Order).
+   * Returns order counts and totals for the given date range.
+   */
+  async getStockDashboard(opts: { start_date?: string; end_date?: string; data_type?: 'gr' | 'do'; location_id?: string } = {}) {
+    this.ensureAuth();
+    const today = new Date().toISOString().split('T')[0];
+    const body = {
+      location_id: opts.location_id ?? '',
+      start_date: opts.start_date ?? today,
+      end_date: opts.end_date ?? today,
+      data_type: opts.data_type ?? 'gr',
+    };
+    const response = await this.axios.post('/api/v1/inventory/dashboard/get-card-info', body);
+    return response.data;
+  }
+
+  /**
+   * Get stock inventory meta settings. Endpoint: GET /api/v1/inventory/inventory-meta-settings
+   * Returns direct_purchase/sales settings and their default locations.
+   */
+  async getInventorySettings() {
+    this.ensureAuth();
+    const response = await this.axios.get('/api/v1/inventory/inventory-meta-settings');
+    return response.data;
+  }
+
+  /**
+   * Enable or disable stock tracking on a product.
+   * Endpoint: PUT /api/v1/saturn/products/{uuid}
+   * Note: Requires full product fields (name, code, uom_id, etc.).
+   */
+  async updateProductTrackStock(productId: string, trackStock: boolean, productData: {
+    name: string;
+    code: string;
+    uom_id: string;
+    sales_price?: number;
+    purchase_price?: number;
+    description?: string;
+    category_id?: string | null;
+    account_sales_id?: string;
+    account_purchase_id?: string;
+  }) {
+    this.ensureAuth();
+    const body = {
+      uuid: productId,
+      name: productData.name,
+      code: productData.code,
+      uom_id: productData.uom_id,
+      sales_price: productData.sales_price ?? 0,
+      purchase_price: productData.purchase_price ?? 0,
+      description: productData.description ?? '',
+      category_id: productData.category_id ?? null,
+      track_stock: trackStock ? 1 : 0,
+      product_multiple_prices: [],
+      ...(productData.account_sales_id ? { account_sales_id: productData.account_sales_id } : {}),
+      ...(productData.account_purchase_id ? { account_purchase_id: productData.account_purchase_id } : {}),
+    };
+    const response = await this.axios.put(`/api/v1/saturn/products/${productId}`, body);
     return response.data;
   }
 }
