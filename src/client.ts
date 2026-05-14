@@ -285,7 +285,16 @@ export class PaperIdClient {
   async getPartners(filters: any = {}, first: number = 0, rows: number = 10) {
     this.ensureAuth();
     const response = await this.axios.post('/api/v1/invoicer/partners/all', {
-      filters,
+      filters: {
+        global:  { matchMode: 'undefined', value: '' },
+        name:    { matchMode: 'undefined', value: '' },
+        email:   { matchMode: 'undefined', value: '' },
+        phone:   { matchMode: 'undefined', value: '' },
+        number:  { matchMode: 'undefined', value: '' },
+        type:    { matchMode: 'undefined', value: [] },
+        country: { matchMode: 'undefined', value: '' },
+        ...filters,
+      },
       first,
       rows,
       sortOrder: -1,
@@ -414,7 +423,7 @@ export class PaperIdClient {
       item_description?: string;
       quantity: number;
       price: number;
-      discount?: number;
+      discount?: number;         // percentage 0-100
       tax_id?: string | null;
     }>;
     notes?: string;             // Keterangan — plain text or HTML

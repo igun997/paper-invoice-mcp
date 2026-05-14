@@ -360,7 +360,7 @@ const tools: Tool[] = [
               item_description: { type: 'string' },
               quantity: { type: 'number' },
               price: { type: 'number' },
-              discount: { type: 'number' },
+              discount: { type: 'number', description: 'Per-item discount percentage 0-100' },
               tax_id: { type: 'string' },
             },
             required: ['item_name', 'quantity', 'price'],
