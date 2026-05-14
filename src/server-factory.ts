@@ -261,6 +261,132 @@ const tools: Tool[] = [
     },
   },
   {
+    name: 'paperid_get_payment_number',
+    description: 'Get next auto-generated payment number (e.g. PYI/2026/0010)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        document_type_id: { type: 'string', description: 'Document type (default: pay-01)' },
+      },
+    },
+  },
+  {
+    name: 'paperid_get_finance_accounts',
+    description: 'Get all finance accounts (bank + cash) used in payment form dropdown',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'paperid_get_payment_methods',
+    description: 'Get payment methods list with UUIDs (Bank Transfer, Cash, Credit Card, etc.)',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'paperid_create_payment',
+    description: 'Create a payment receipt (Kuitansi Penjualan) for one or more invoices',
+    inputSchema: {
+      type: 'object',
+      required: ['payments'],
+      properties: {
+        payments: {
+          type: 'array',
+          description: 'Array of payment objects',
+          items: {
+            type: 'object',
+            required: ['invoice_id', 'amount', 'finance_account_id', 'method', 'partner_id'],
+            properties: {
+              invoice_id:              { type: 'string', description: 'Invoice UUID' },
+              invoice_document_type_id:{ type: 'string', description: 'Default: inv-01' },
+              amount:                  { type: 'number', description: 'Amount in IDR' },
+              payment_date:            { type: 'string', description: 'ISO date, default now' },
+              finance_account_id:      { type: 'string', description: 'UUID from get_finance_accounts' },
+              method:                  { type: 'string', description: 'Payment method UUID from get_payment_methods' },
+              partner_id:              { type: 'string', description: 'Partner UUID' },
+              number:                  { type: 'string', description: 'Payment number e.g. PYI/2026/0010 (auto if omitted)' },
+              notes:                   { type: 'string' },
+              document_reference:      { type: 'string' },
+              type:                    { type: 'string', description: 'In (received) or Out. Default: In' },
+            },
+          },
+        },
+      },
+    },
+  },
+  {
+    name: 'paperid_get_payments',
+    description: 'List payment receipts (Kuitansi Penjualan) with filters and pagination',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        filters: {
+          type: 'object',
+          description: 'Filter criteria',
+          properties: {
+            invoice_number: { type: 'string' },
+            name:           { type: 'string', description: 'Partner/client name' },
+            global:         { type: 'string', description: 'Global text search' },
+            payment_date:   { type: 'string' },
+            notes:          { type: 'string' },
+            status:         { type: 'string' },
+            amount:         { type: 'string' },
+            number:         { type: 'string', description: 'Payment number e.g. PYI/2026/0010' },
+            account_name:   { type: 'string', description: 'Finance account name' },
+            send_status:    { type: 'array', items: { type: 'string' } },
+            document_reference: { type: 'string' },
+          },
+        },
+        first:      { type: 'number', description: 'Start index (default: 0)' },
+        rows:       { type: 'number', description: 'Page size (default: 10)' },
+        sortField:  { type: 'string', description: 'Sort field (default: created_at)' },
+        sortOrder:  { type: 'number', description: '-1=desc (default), 1=asc' },
+      },
+    },
+  },
+  {
+    name: 'paperid_get_payment_pdf',
+    description: 'Get payment receipt PDF data',
+    inputSchema: {
+      type: 'object',
+      required: ['paymentId'],
+      properties: {
+        paymentId: { type: 'string', description: 'Payment UUID' },
+      },
+    },
+  },
+  {
+    name: 'paperid_send_payment',
+    description: 'Send payment receipt via WhatsApp, Email, or SMS',
+    inputSchema: {
+      type: 'object',
+      required: ['paymentId'],
+      properties: {
+        paymentId: { type: 'string', description: 'Payment UUID' },
+        whatsapp: {
+          type: 'object',
+          properties: { number: { type: 'string', description: 'Phone with country code e.g. 628996926184' } },
+        },
+        email: {
+          type: 'object',
+          properties: { to: { type: 'string' }, cc: { type: 'string' } },
+        },
+        sms: {
+          type: 'object',
+          properties: { number: { type: 'string' } },
+        },
+      },
+    },
+  },
+  {
+    name: 'paperid_delete_payment',
+    description: 'Delete a payment receipt by UUID',
+    inputSchema: {
+      type: 'object',
+      required: ['paymentId'],
+      properties: {
+        paymentId: { type: 'string', description: 'Payment UUID' },
+      },
+    },
+  },
+  {
     name: 'paperid_get_partner',
     description: 'Get a single partner by UUID',
     inputSchema: {
@@ -1290,13 +1416,82 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { platform } = args as { platform?: string };
         const result = await client.getBanners(platform);
         return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         };
+      }
+
+      case 'paperid_get_payment_number': {
+        const { document_type_id } = args as { document_type_id?: string };
+        const result = await client.getPaymentNumber(document_type_id);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_finance_accounts': {
+        const result = await client.getFinanceAccounts();
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_payment_methods': {
+        const result = await client.getPaymentMethods();
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_create_payment': {
+        const { payments } = args as { payments: any[] };
+        const result = await client.createPayment(payments);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_payments': {
+        const { filters, first, rows, sortField, sortOrder } = args as {
+          filters?: any; first?: number; rows?: number;
+          sortField?: string; sortOrder?: number;
+        };
+        const body = {
+          filters: {
+            invoice_number:     { matchMode: 'undefined', value: filters?.invoice_number ?? '' },
+            name:               { matchMode: 'undefined', value: filters?.name ?? '' },
+            global:             { matchMode: 'undefined', value: filters?.global ?? '' },
+            payment_date:       { matchMode: 'undefined', value: filters?.payment_date ?? '' },
+            notes:              { matchMode: 'undefined', value: filters?.notes ?? '' },
+            status:             { matchMode: 'undefined', value: filters?.status ?? '' },
+            amount:             { matchMode: 'undefined', value: filters?.amount ?? '' },
+            invoice_type:       { matchMode: 'undefined', value: filters?.invoice_type ?? '' },
+            number:             { matchMode: 'undefined', value: filters?.number ?? '' },
+            account_name:       { matchMode: 'undefined', value: filters?.account_name ?? '' },
+            send_status:        { matchMode: 'undefined', value: filters?.send_status ?? [] },
+            document_reference: { matchMode: 'undefined', value: filters?.document_reference ?? '' },
+          },
+          first: first ?? 0,
+          rows: rows ?? 10,
+          sortOrder: sortOrder ?? -1,
+          sortField: sortField ?? 'created_at',
+        };
+        const response = await (client as any).axios.post('/api/v1/invoicer/payments-load-received', body);
+        return { content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }] };
+      }
+
+      case 'paperid_get_payment_pdf': {
+        const { paymentId } = args as { paymentId: string };
+        const result = await client.getPaymentPdf(paymentId);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_send_payment': {
+        const { paymentId, whatsapp, email, sms } = args as {
+          paymentId: string;
+          whatsapp?: { number: string };
+          email?: { to: string; cc?: string };
+          sms?: { number: string };
+        };
+        const result = await client.sendPayment(paymentId, { whatsapp, email, sms });
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_delete_payment': {
+        const { paymentId } = args as { paymentId: string };
+        const result = await client.deletePayment(paymentId);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
       }
 
       case 'paperid_get_partner': {

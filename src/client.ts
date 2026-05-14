@@ -782,6 +782,142 @@ export class PaperIdClient {
     return response.data;
   }
 
+  // ── Payments (Kuitansi Penjualan) ──────────────────────────────────────────
+
+  /**
+   * Get next auto-generated payment number.
+   * document_type_id: 'pay-01' (receipt/kuitansi penjualan)
+   */
+  async getPaymentNumber(documentTypeId: string = 'pay-01') {
+    this.ensureAuth();
+    const response = await this.axios.get(`/api/v1/invoicer/payments/number/${documentTypeId}`);
+    return response.data; // { data: { payment_next_number, payment_hash, ... }, no_payment: 'PYI/2026/0010' }
+  }
+
+  /**
+   * Get all finance accounts (bank + cash accounts) — used in payment form dropdown.
+   * Returns { finance_accounts: [...] }
+   */
+  async getFinanceAccounts() {
+    this.ensureAuth();
+    const response = await this.axios.get('/api/v1/finance/accounts');
+    return response.data;
+  }
+
+  /**
+   * Create a payment receipt (Kuitansi Penjualan).
+   *
+   * Payment methods (static list):
+   *   'Memo' | 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Digital Payment'
+   *   → mapped to method UUIDs by the API (browser sends UUID, not label).
+   *   Known UUID: Bank Transfer = '2b00cf25-2fe0-420d-b045-3bc94445dd8b'
+   *   Use getPaymentMethodId() helper or pass raw UUID.
+   *
+   * @param payments - array of payment objects (usually 1)
+   */
+  async createPayment(payments: Array<{
+    invoice_id: string;                  // invoice UUID
+    invoice_document_type_id?: string;   // default 'inv-01'
+    amount: number;                      // payment amount in IDR
+    payment_date?: string;               // ISO date string, default now
+    finance_account_id: string;          // UUID from getFinanceAccounts()
+    method: string;                      // payment method UUID (see PAYMENT_METHODS)
+    partner_id: string;                  // partner UUID
+    number?: string;                     // payment number e.g. 'PYI/2026/0010' (auto from getPaymentNumber)
+    notes?: string;
+    document_reference?: string;
+    type?: 'In' | 'Out';                 // 'In' = received payment (default)
+    foreign_currency_setting?: {
+      currency_code: string;
+      currency_rate: number;
+      estimation_date?: string;
+      is_show?: boolean;
+    };
+  }>) {
+    this.ensureAuth();
+    const payload = payments.map(p => ({
+      payment_date: p.payment_date ?? new Date().toISOString(),
+      finance_account_id: p.finance_account_id,
+      amount: p.amount,
+      method: p.method,
+      type: p.type ?? 'In',
+      invoices: [{
+        invoice_id: p.invoice_id,
+        amount: p.amount,
+        invoice_document_type_id: p.invoice_document_type_id ?? 'inv-01',
+      }],
+      partner_id: p.partner_id,
+      notes: p.notes ?? '',
+      number: p.number ?? '',
+      document_reference: p.document_reference ?? '',
+      ...(p.foreign_currency_setting ? { foreign_currency_setting: p.foreign_currency_setting } : {}),
+    }));
+    const response = await this.axios.post('/api/v1/invoicer/payments', { payments: payload });
+    return response.data;
+  }
+
+  /**
+   * Get payments for a specific invoice.
+   */
+  async getInvoicePayments(invoiceId: string) {
+    this.ensureAuth();
+    const response = await this.axios.get(`/api/v1/invoicer/payments/${invoiceId}`);
+    return response.data;
+  }
+
+  /**
+   * Delete a payment receipt by UUID.
+   */
+  async deletePayment(paymentId: string) {
+    this.ensureAuth();
+    const response = await this.axios.delete(`/api/v1/invoicer/payments/${paymentId}`);
+    return response.data;
+  }
+
+  /**
+   * Send a payment receipt via WhatsApp/email/SMS.
+   * Same body shape as sendInvoice.
+   */
+  async sendPayment(paymentId: string, options: {
+    whatsapp?: { number: string };    // phone with country code e.g. '628996926184'
+    email?: { to: string; cc?: string };
+    sms?: { number: string };
+  }) {
+    this.ensureAuth();
+    const response = await this.axios.post(`/api/v1/invoicer/payments/send/${paymentId}`, options);
+    return response.data;
+  }
+
+  /**
+   * Get payment receipt PDF data (settings + payment object).
+   */
+  async getPaymentPdf(paymentId: string) {
+    this.ensureAuth();
+    const response = await this.axios.get(`/api/v1/invoicer/payments/pdf/${paymentId}`);
+    return response.data;
+  }
+
+  /**
+   * Get payment methods list (dynamic, company-specific UUIDs).
+   * Returns { payment_methods: [{uuid, name, active_in, active_out, is_digital_payment}] }
+   */
+  async getPaymentMethods() {
+    this.ensureAuth();
+    const response = await this.axios.get('/api/v1/invoicer/payment-methods');
+    return response.data;
+  }
+
+  /** Known payment method UUIDs (captured from real API — company-specific but typically stable) */
+  static readonly PAYMENT_METHODS: Record<string, string> = {
+    'Memo':            '06064a30-b521-41dd-84f5-d5ef7e0f6077',
+    'Credit Card':     '0e27ae62-8b71-4072-8d98-998927116c06',
+    'Bank Transfer':   '2b00cf25-2fe0-420d-b045-3bc94445dd8b',
+    'Journal Entry':   '59dea5bc-0bbe-46b1-bc6c-391f73a93291',
+    'Cash':            'c0bb3a7d-c5e4-42af-b50f-7a7d961fd9c1',
+    'Digital Payment': 'c36904a1-c6e2-4d79-80b8-d5cef0a52718',
+    'Check':           'dd72763a-29b4-44d7-a900-b705b5f27c08',
+  };
+
   // Getters
   getToken() {
     return this.token;
