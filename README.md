@@ -9,41 +9,103 @@ Token is **persisted in SQLite** and **auto-refreshed on 401** — no manual tok
 
 ## Quick Setup
 
-### Option A — JWT token only (no credentials stored)
+### Option A — JWT token only
+
+Best for quick testing or CI. No password stored — just paste your token.
+
+**1. Get your token from Chrome DevTools:**
+- Open [app.paper.id](https://app.paper.id) → DevTools (`F12`) → Network tab
+- Click any request to `api.paper.id` → Headers → Request Headers
+- Copy the value after `Authorization: Bearer ` (the `eyJ...` part)
+
+**2. Get your Company ID and User ID:**
+- Same DevTools window → Response tab of any request
+- Look for `body.user.uuid` (User ID) and `body.user.company_id` (Company ID)
+- Or: set `PAPERID_TOKEN` first, then call tool `paperid_get_current_user` — it returns both
+
+**3. Add to your MCP client config:**
+
+**Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`)
 ```json
 {
   "mcpServers": {
     "paperid": {
       "command": "node",
-      "args": ["/path/to/paper-invoice-mcp/dist/index.js"],
+      "args": ["/absolute/path/to/paper-invoice-mcp/dist/index.js"],
       "env": {
-        "PAPERID_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.your.token",
-        "PAPERID_COMPANY_ID": "your-company-uuid",
-        "PAPERID_USER_ID":  "your-user-uuid"
+        "PAPERID_TOKEN":      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.your.token",
+        "PAPERID_COMPANY_ID": "37e0eae0-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "PAPERID_USER_ID":    "3f5a9896-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
       }
     }
   }
 }
 ```
-> JWT expires (24h or 30d). Grab a fresh one from DevTools when it does.  
-> See [`examples/jwt-only.md`](examples/jwt-only.md) for details.
 
-### Option B — Phone + Password (auto-refresh)
+**Cursor** (`.cursor/mcp.json` or `~/.cursor/mcp.json`)
 ```json
 {
   "mcpServers": {
     "paperid": {
       "command": "node",
-      "args": ["/path/to/paper-invoice-mcp/dist/index.js"],
+      "args": ["/absolute/path/to/paper-invoice-mcp/dist/index.js"],
       "env": {
-        "PAPERID_PHONE": "08xxxxxxxxxx",
+        "PAPERID_TOKEN":      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.your.token",
+        "PAPERID_COMPANY_ID": "37e0eae0-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "PAPERID_USER_ID":    "3f5a9896-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+      }
+    }
+  }
+}
+```
+
+**VS Code** (`.vscode/mcp.json`)
+```json
+{
+  "servers": {
+    "paperid": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/absolute/path/to/paper-invoice-mcp/dist/index.js"],
+      "env": {
+        "PAPERID_TOKEN":      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.your.token",
+        "PAPERID_COMPANY_ID": "37e0eae0-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "PAPERID_USER_ID":    "3f5a9896-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+      }
+    }
+  }
+}
+```
+
+> JWT expires in ~30 days. When it does, copy a fresh token from DevTools and update the config.  
+> Full step-by-step with troubleshooting: [`examples/jwt-only.md`](examples/jwt-only.md)
+
+---
+
+### Option B — Phone + Password (auto-refresh)
+
+Best for long-running assistants. Token saved to SQLite, silently refreshed on 401.
+
+**Claude Desktop / Cursor / VS Code:**
+```json
+{
+  "mcpServers": {
+    "paperid": {
+      "command": "node",
+      "args": ["/absolute/path/to/paper-invoice-mcp/dist/index.js"],
+      "env": {
+        "PAPERID_PHONE":    "08xxxxxxxxxx",
         "PAPERID_PASSWORD": "your_password_here"
       }
     }
   }
 }
 ```
-> Token saved to SQLite. Auto-refreshed on 401. No manual intervention needed.
+
+**First run** — call `paperid_login` (or `paperid_refresh_token`) once to store the JWT in SQLite.  
+After that, the server handles everything automatically.
+
+> Token persisted at `~/.paperid-mcp/tokens.db`. Override path with `PAPERID_DB_PATH`.
 
 ---
 
@@ -297,13 +359,16 @@ The server exposes 6 resources AI clients can read for accurate tool usage:
 ```
 paper-invoice-mcp/
 ├── src/
-│   ├── index.ts          # MCP server + tool definitions + handlers + resources
-│   ├── client.ts         # Paper.id API client (axios)
-│   └── token-store.ts    # SQLite token persistence (better-sqlite3)
+│   ├── index.ts              # Entrypoint — connects MCP server to stdio
+│   ├── server-factory.ts     # createMcpServer() — all tools, handlers, resources
+│   ├── client.ts             # Paper.id API client (axios)
+│   └── token-store.ts        # SQLite token persistence (better-sqlite3)
 ├── examples/
-│   └── jwt-only.md       # JWT-only setup guide with config examples
-├── dist/                 # Compiled JS (gitignored)
-├── .env.example          # Sample env vars (no real credentials)
+│   └── jwt-only.md           # JWT-only setup guide (step-by-step + all client configs)
+├── .github/
+│   └── workflows/ci.yml      # CI: build+resources (all PRs), e2e (merge to master)
+├── dist/                     # Compiled JS (gitignored)
+├── .env.example              # Sample env vars (no real credentials)
 ├── tsconfig.json
 └── package.json
 ```
