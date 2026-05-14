@@ -7,6 +7,46 @@ Token is **persisted in SQLite** and **auto-refreshed on 401** — no manual tok
 
 ---
 
+## Quick Setup
+
+### Option A — JWT token only (no credentials stored)
+```json
+{
+  "mcpServers": {
+    "paperid": {
+      "command": "node",
+      "args": ["/path/to/paper-invoice-mcp/dist/index.js"],
+      "env": {
+        "PAPERID_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.your.token",
+        "PAPERID_COMPANY_ID": "your-company-uuid",
+        "PAPERID_USER_ID":  "your-user-uuid"
+      }
+    }
+  }
+}
+```
+> JWT expires (24h or 30d). Grab a fresh one from DevTools when it does.  
+> See [`examples/jwt-only.md`](examples/jwt-only.md) for details.
+
+### Option B — Phone + Password (auto-refresh)
+```json
+{
+  "mcpServers": {
+    "paperid": {
+      "command": "node",
+      "args": ["/path/to/paper-invoice-mcp/dist/index.js"],
+      "env": {
+        "PAPERID_PHONE": "08xxxxxxxxxx",
+        "PAPERID_PASSWORD": "your_password_here"
+      }
+    }
+  }
+}
+```
+> Token saved to SQLite. Auto-refreshed on 401. No manual intervention needed.
+
+---
+
 ## Features
 
 - **Partner management** — create, read, list, search, update, delete
@@ -237,14 +277,31 @@ Returns expiry info. Raw JWT is **never** returned by any tool.
 
 ---
 
+## MCP Resources
+
+The server exposes 6 resources AI clients can read for accurate tool usage:
+
+| URI | Description |
+|---|---|
+| `paperid://docs/overview` | Overview, tool groups, typical workflow |
+| `paperid://docs/auth` | Login flow, SQLite persistence, auto-refresh |
+| `paperid://docs/jwt-only` | JWT-only setup, config examples, expiry handling |
+| `paperid://docs/partners` | Partner schema, field types, phone format, base paths |
+| `paperid://docs/invoices` | Invoice schema, line items, notes/terms, status codes |
+| `paperid://docs/api-reference` | All 31 HTTP endpoints with methods and paths |
+
+---
+
 ## Project Structure
 
 ```
 paper-invoice-mcp/
 ├── src/
-│   ├── index.ts          # MCP server + tool definitions + handlers
+│   ├── index.ts          # MCP server + tool definitions + handlers + resources
 │   ├── client.ts         # Paper.id API client (axios)
 │   └── token-store.ts    # SQLite token persistence (better-sqlite3)
+├── examples/
+│   └── jwt-only.md       # JWT-only setup guide with config examples
 ├── dist/                 # Compiled JS (gitignored)
 ├── .env.example          # Sample env vars (no real credentials)
 ├── tsconfig.json
