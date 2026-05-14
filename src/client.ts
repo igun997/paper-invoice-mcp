@@ -1105,10 +1105,51 @@ export class PaperIdClient {
     return response.data;
   }
 
-  /** Get product categories. Endpoint: GET /api/v1/invoicer/categories */
+  /** List product categories. Endpoint: GET /api/v1/invoicer/categories */
   async getProductCategories() {
     this.ensureAuth();
     const response = await this.axios.get('/api/v1/invoicer/categories');
+    return response.data;
+  }
+
+  /** Get single product category. Endpoint: GET /api/v1/invoicer/categories/{uuid} */
+  async getProductCategory(categoryId: string) {
+    this.ensureAuth();
+    const response = await this.axios.get(`/api/v1/invoicer/categories/${categoryId}`);
+    return response.data;
+  }
+
+  /**
+   * Create product category. Endpoint: POST /api/v1/invoicer/categories
+   * Fields: name, description, category_parent_id (optional)
+   */
+  async createProductCategory(data: {
+    name: string;
+    description?: string;
+    category_parent_id?: string;
+    minimum_order_quantity?: number;
+  }) {
+    this.ensureAuth();
+    const response = await this.axios.post('/api/v1/invoicer/categories', data);
+    return response.data;
+  }
+
+  /** Update product category. Endpoint: PUT /api/v1/invoicer/categories/{uuid} */
+  async updateProductCategory(categoryId: string, data: {
+    name?: string;
+    description?: string;
+    category_parent_id?: string;
+    minimum_order_quantity?: number;
+  }) {
+    this.ensureAuth();
+    const response = await this.axios.put(`/api/v1/invoicer/categories/${categoryId}`, data);
+    return response.data;
+  }
+
+  /** Delete product category. Endpoint: DELETE /api/v1/invoicer/categories/{uuid} */
+  async deleteProductCategory(categoryId: string) {
+    this.ensureAuth();
+    const response = await this.axios.delete(`/api/v1/invoicer/categories/${categoryId}`);
     return response.data;
   }
 
@@ -1126,6 +1167,86 @@ export class PaperIdClient {
       sortField: 'created_at',
     };
     const response = await this.axios.post('/api/v2/saturn/uom/all', body);
+    return response.data;
+  }
+
+  /**
+   * Create unit of measure. Endpoint: POST /api/v2/saturn/uom
+   * Fields: name (required), symbol (required), description (optional)
+   */
+  async createUnitOfMeasure(data: { name: string; symbol: string; description?: string }) {
+    this.ensureAuth();
+    const response = await this.axios.post('/api/v2/saturn/uom', data);
+    return response.data;
+  }
+
+  /** Update unit of measure. Endpoint: PUT /api/v2/saturn/uom/{uuid} */
+  async updateUnitOfMeasure(uomId: string, data: { name?: string; symbol?: string; description?: string }) {
+    this.ensureAuth();
+    const response = await this.axios.put(`/api/v2/saturn/uom/${uomId}`, data);
+    return response.data;
+  }
+
+  /** Delete unit of measure. Endpoint: DELETE /api/v2/saturn/uom/{uuid} */
+  async deleteUnitOfMeasure(uomId: string) {
+    this.ensureAuth();
+    const response = await this.axios.delete(`/api/v2/saturn/uom/${uomId}`);
+    return response.data;
+  }
+
+  // ─── UoM Categories (Kategori Unit) ───────────────────────────────────────────
+
+  /**
+   * List UoM categories. Endpoint: POST /api/v1/saturn/uom-category/all
+   * Returns: { body: { uom_categories: [], total_records: N } }
+   */
+  async getUomCategories(opts: { first?: number; rows?: number } = {}) {
+    this.ensureAuth();
+    const body = {
+      filters: { global: { matchMode: 'undefined', value: '' } },
+      first: opts.first ?? 0,
+      rows: opts.rows ?? 50,
+      sortOrder: -1,
+      sortField: 'created_at',
+    };
+    const response = await this.axios.post('/api/v1/saturn/uom-category/all', body);
+    return response.data;
+  }
+
+  /** Get single UoM category. Endpoint: GET /api/v1/saturn/uom-category/{uuid} */
+  async getUomCategory(categoryId: string) {
+    this.ensureAuth();
+    const response = await this.axios.get(`/api/v1/saturn/uom-category/${categoryId}`);
+    return response.data;
+  }
+
+  /**
+   * Create UoM category. Endpoint: POST /api/v1/saturn/uom-category
+   * Fields: name (required), uoms (array of UoM UUIDs, optional)
+   */
+  async createUomCategory(data: { name: string; uoms?: string[] }) {
+    this.ensureAuth();
+    const response = await this.axios.post('/api/v1/saturn/uom-category', {
+      name: data.name,
+      uoms: data.uoms ?? [],
+    });
+    return response.data;
+  }
+
+  /** Update UoM category. Endpoint: PUT /api/v1/saturn/uom-category/{uuid} */
+  async updateUomCategory(categoryId: string, data: { name?: string; uoms?: string[] }) {
+    this.ensureAuth();
+    const response = await this.axios.put(`/api/v1/saturn/uom-category/${categoryId}`, {
+      name: data.name,
+      uoms: data.uoms ?? [],
+    });
+    return response.data;
+  }
+
+  /** Delete UoM category. Endpoint: DELETE /api/v1/saturn/uom-category/{uuid} */
+  async deleteUomCategory(categoryId: string) {
+    this.ensureAuth();
+    const response = await this.axios.delete(`/api/v1/saturn/uom-category/${categoryId}`);
     return response.data;
   }
 }

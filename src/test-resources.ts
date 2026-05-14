@@ -112,7 +112,19 @@ const EXPECTED_TOOLS = [
   'paperid_update_product',
   'paperid_delete_product',
   'paperid_get_product_categories',
+  'paperid_get_product_category',
+  'paperid_create_product_category',
+  'paperid_update_product_category',
+  'paperid_delete_product_category',
   'paperid_get_units_of_measure',
+  'paperid_create_unit_of_measure',
+  'paperid_update_unit_of_measure',
+  'paperid_delete_unit_of_measure',
+  'paperid_get_uom_categories',
+  'paperid_get_uom_category',
+  'paperid_create_uom_category',
+  'paperid_update_uom_category',
+  'paperid_delete_uom_category',
 ];
 
 // ─── Tests ───────────────────────────────────────────────────────────────────

@@ -508,8 +508,55 @@ const tools: Tool[] = [
   },
   {
     name: 'paperid_get_product_categories',
-    description: 'Get product categories. GET /api/v1/invoicer/categories',
+    description: 'List all product categories. GET /api/v1/invoicer/categories',
     inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'paperid_get_product_category',
+    description: 'Get single product category by UUID. GET /api/v1/invoicer/categories/{uuid}',
+    inputSchema: {
+      type: 'object',
+      required: ['categoryId'],
+      properties: { categoryId: { type: 'string', description: 'Category UUID' } },
+    },
+  },
+  {
+    name: 'paperid_create_product_category',
+    description: 'Create a product category. POST /api/v1/invoicer/categories',
+    inputSchema: {
+      type: 'object',
+      required: ['name'],
+      properties: {
+        name:                    { type: 'string' },
+        description:             { type: 'string' },
+        category_parent_id:      { type: 'string', description: 'Parent category UUID for nested categories' },
+        minimum_order_quantity:  { type: 'number', description: 'Min order qty (default: 0)' },
+      },
+    },
+  },
+  {
+    name: 'paperid_update_product_category',
+    description: 'Update a product category. PUT /api/v1/invoicer/categories/{uuid}',
+    inputSchema: {
+      type: 'object',
+      required: ['categoryId'],
+      properties: {
+        categoryId:              { type: 'string' },
+        name:                    { type: 'string' },
+        description:             { type: 'string' },
+        category_parent_id:      { type: 'string' },
+        minimum_order_quantity:  { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'paperid_delete_product_category',
+    description: 'Delete a product category. DELETE /api/v1/invoicer/categories/{uuid}',
+    inputSchema: {
+      type: 'object',
+      required: ['categoryId'],
+      properties: { categoryId: { type: 'string' } },
+    },
   },
   {
     name: 'paperid_get_units_of_measure',
@@ -520,6 +567,97 @@ const tools: Tool[] = [
         first: { type: 'number', description: 'Offset (default: 0)' },
         rows:  { type: 'number', description: 'Page size (default: 50)' },
       },
+    },
+  },
+  {
+    name: 'paperid_create_unit_of_measure',
+    description: 'Create a custom unit of measure. POST /api/v2/saturn/uom',
+    inputSchema: {
+      type: 'object',
+      required: ['name', 'symbol'],
+      properties: {
+        name:        { type: 'string', description: 'Unit name (e.g. Kilogram)' },
+        symbol:      { type: 'string', description: 'Unit symbol (e.g. KG)' },
+        description: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'paperid_update_unit_of_measure',
+    description: 'Update a unit of measure. PUT /api/v2/saturn/uom/{uuid}',
+    inputSchema: {
+      type: 'object',
+      required: ['uomId'],
+      properties: {
+        uomId:       { type: 'string', description: 'UoM UUID' },
+        name:        { type: 'string' },
+        symbol:      { type: 'string' },
+        description: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'paperid_delete_unit_of_measure',
+    description: 'Delete a unit of measure. DELETE /api/v2/saturn/uom/{uuid}',
+    inputSchema: {
+      type: 'object',
+      required: ['uomId'],
+      properties: { uomId: { type: 'string' } },
+    },
+  },
+  // ─── UoM Categories (Kategori Unit) ────────────────────────────────────────────────────────────
+  {
+    name: 'paperid_get_uom_categories',
+    description: 'List UoM categories (Kategori Unit). POST /api/v1/saturn/uom-category/all',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        first: { type: 'number', description: 'Offset (default: 0)' },
+        rows:  { type: 'number', description: 'Page size (default: 50)' },
+      },
+    },
+  },
+  {
+    name: 'paperid_get_uom_category',
+    description: 'Get single UoM category by UUID. GET /api/v1/saturn/uom-category/{uuid}',
+    inputSchema: {
+      type: 'object',
+      required: ['categoryId'],
+      properties: { categoryId: { type: 'string' } },
+    },
+  },
+  {
+    name: 'paperid_create_uom_category',
+    description: 'Create a UoM category (Kategori Unit). POST /api/v1/saturn/uom-category. Can assign UoM UUIDs to the category.',
+    inputSchema: {
+      type: 'object',
+      required: ['name'],
+      properties: {
+        name: { type: 'string', description: 'Category name' },
+        uoms: { type: 'array', items: { type: 'string' }, description: 'Array of UoM UUIDs to include in this category' },
+      },
+    },
+  },
+  {
+    name: 'paperid_update_uom_category',
+    description: 'Update a UoM category. PUT /api/v1/saturn/uom-category/{uuid}',
+    inputSchema: {
+      type: 'object',
+      required: ['categoryId'],
+      properties: {
+        categoryId: { type: 'string' },
+        name:       { type: 'string' },
+        uoms:       { type: 'array', items: { type: 'string' }, description: 'Array of UoM UUIDs' },
+      },
+    },
+  },
+  {
+    name: 'paperid_delete_uom_category',
+    description: 'Delete a UoM category. DELETE /api/v1/saturn/uom-category/{uuid}',
+    inputSchema: {
+      type: 'object',
+      required: ['categoryId'],
+      properties: { categoryId: { type: 'string' } },
     },
   },
   {
@@ -1684,9 +1822,81 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
       }
 
+      case 'paperid_get_product_category': {
+        const { categoryId } = args as { categoryId: string };
+        const result = await client.getProductCategory(categoryId);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_create_product_category': {
+        const { name, description, category_parent_id, minimum_order_quantity } = args as any;
+        const result = await client.createProductCategory({ name, description, category_parent_id, minimum_order_quantity });
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_update_product_category': {
+        const { categoryId, ...data } = args as any;
+        const result = await client.updateProductCategory(categoryId, data);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_delete_product_category': {
+        const { categoryId } = args as { categoryId: string };
+        const result = await client.deleteProductCategory(categoryId);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
       case 'paperid_get_units_of_measure': {
         const { first, rows } = args as { first?: number; rows?: number };
         const result = await client.getUnitsOfMeasure({ first, rows });
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_create_unit_of_measure': {
+        const { name, symbol, description } = args as { name: string; symbol: string; description?: string };
+        const result = await client.createUnitOfMeasure({ name, symbol, description });
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_update_unit_of_measure': {
+        const { uomId, ...data } = args as any;
+        const result = await client.updateUnitOfMeasure(uomId, data);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_delete_unit_of_measure': {
+        const { uomId } = args as { uomId: string };
+        const result = await client.deleteUnitOfMeasure(uomId);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_uom_categories': {
+        const { first, rows } = args as { first?: number; rows?: number };
+        const result = await client.getUomCategories({ first, rows });
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_uom_category': {
+        const { categoryId } = args as { categoryId: string };
+        const result = await client.getUomCategory(categoryId);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_create_uom_category': {
+        const { name, uoms } = args as { name: string; uoms?: string[] };
+        const result = await client.createUomCategory({ name, uoms });
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_update_uom_category': {
+        const { categoryId, name, uoms } = args as { categoryId: string; name?: string; uoms?: string[] };
+        const result = await client.updateUomCategory(categoryId, { name, uoms });
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_delete_uom_category': {
+        const { categoryId } = args as { categoryId: string };
+        const result = await client.deleteUomCategory(categoryId);
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
       }
 
