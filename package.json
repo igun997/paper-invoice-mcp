@@ -8,7 +8,9 @@
     "build": "tsc",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
-    "test": "vitest"
+    "test": "npm run test:resources && npm run test:e2e",
+    "test:resources": "node dist/test-resources.js",
+    "test:e2e": "node dist/test.js"
   },
   "keywords": [
     "mcp",
