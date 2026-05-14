@@ -419,6 +419,109 @@ const tools: Tool[] = [
       },
     },
   },
+  // ─── Products ──────────────────────────────────────────────────────────────
+  {
+    name: 'paperid_get_products',
+    description: 'List products (Produk & Stok). POST /api/v1/inventory/products/all',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        filters: {
+          type: 'object',
+          properties: {
+            name:           { type: 'string' },
+            code:           { type: 'string', description: 'SKU code' },
+            category_name:  { type: 'string' },
+            description:    { type: 'string' },
+          },
+        },
+        first:     { type: 'number', description: 'Offset (default: 0)' },
+        rows:      { type: 'number', description: 'Page size (default: 10)' },
+        sortField: { type: 'string', description: 'default: created_at' },
+        sortOrder: { type: 'number', description: '-1=desc (default), 1=asc' },
+      },
+    },
+  },
+  {
+    name: 'paperid_get_product',
+    description: 'Get a single product by UUID. GET /api/v1/invoicer/products/{uuid}',
+    inputSchema: {
+      type: 'object',
+      required: ['productId'],
+      properties: {
+        productId: { type: 'string', description: 'Product UUID' },
+      },
+    },
+  },
+  {
+    name: 'paperid_get_next_product_sku',
+    description: 'Get the next auto-generated product SKU code. GET /api/v1/invoicer/products/sku/',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'paperid_create_product',
+    description: 'Create a new product. POST /api/v1/invoicer/products',
+    inputSchema: {
+      type: 'object',
+      required: ['code', 'name'],
+      properties: {
+        code:           { type: 'string', description: 'SKU code (e.g. VA009)' },
+        name:           { type: 'string', description: 'Product name' },
+        description:    { type: 'string' },
+        sales_price:    { type: 'number', description: 'Selling price in IDR' },
+        purchase_price: { type: 'number', description: 'Purchase/cost price in IDR' },
+        category_id:    { type: 'string', description: 'Category UUID (from paperid_get_product_categories)' },
+        uom_id:         { type: 'string', description: 'Unit of measure UUID (from paperid_get_units_of_measure). Default: Piece=05429f81-f62e-41cd-ba00-2c4245c060e7' },
+        track_stock:    { type: 'number', description: '0=no stock tracking, 1=track stock' },
+      },
+    },
+  },
+  {
+    name: 'paperid_update_product',
+    description: 'Update an existing product. PUT /api/v1/invoicer/products/{uuid}',
+    inputSchema: {
+      type: 'object',
+      required: ['productId'],
+      properties: {
+        productId:      { type: 'string', description: 'Product UUID' },
+        code:           { type: 'string' },
+        name:           { type: 'string' },
+        description:    { type: 'string' },
+        sales_price:    { type: 'number' },
+        purchase_price: { type: 'number' },
+        category_id:    { type: 'string' },
+        uom_id:         { type: 'string' },
+        track_stock:    { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'paperid_delete_product',
+    description: 'Delete (soft-delete) a product. DELETE /api/v1/invoicer/products/{uuid}',
+    inputSchema: {
+      type: 'object',
+      required: ['productId'],
+      properties: {
+        productId: { type: 'string', description: 'Product UUID' },
+      },
+    },
+  },
+  {
+    name: 'paperid_get_product_categories',
+    description: 'Get product categories. GET /api/v1/invoicer/categories',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'paperid_get_units_of_measure',
+    description: 'List units of measure (150 global units). POST /api/v2/saturn/uom/all',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        first: { type: 'number', description: 'Offset (default: 0)' },
+        rows:  { type: 'number', description: 'Page size (default: 50)' },
+      },
+    },
+  },
   {
     name: 'paperid_get_partner',
     description: 'Get a single partner by UUID',
@@ -1538,6 +1641,52 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           sortField?: string; sortOrder?: number; status?: string;
         };
         const result = await client.getDigitalPaymentTransactions({ filters, first, rows, sortField, sortOrder, status });
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_products': {
+        const { filters, first, rows, sortField, sortOrder } = args as any;
+        const result = await client.getProducts({ filters, first, rows, sortField, sortOrder });
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_product': {
+        const { productId } = args as { productId: string };
+        const result = await client.getProduct(productId);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_next_product_sku': {
+        const result = await client.getNextProductSku();
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_create_product': {
+        const { code, name, description, sales_price, purchase_price, category_id, uom_id, track_stock } = args as any;
+        const result = await client.createProduct({ code, name, description, sales_price, purchase_price, category_id, uom_id, track_stock });
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_update_product': {
+        const { productId, ...data } = args as any;
+        const result = await client.updateProduct(productId, data);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_delete_product': {
+        const { productId } = args as { productId: string };
+        const result = await client.deleteProduct(productId);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_product_categories': {
+        const result = await client.getProductCategories();
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_units_of_measure': {
+        const { first, rows } = args as { first?: number; rows?: number };
+        const result = await client.getUnitsOfMeasure({ first, rows });
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
       }
 

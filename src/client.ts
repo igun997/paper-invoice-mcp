@@ -1000,4 +1000,132 @@ export class PaperIdClient {
   setUserId(userId: string) {
     this.userId = userId;
   }
+
+  // ─── Products ───────────────────────────────────────────────────────────────
+
+  /**
+   * List products. Endpoint: POST /api/v1/inventory/products/all
+   * Filters: name, code, category_name, sales_price, purchase_price, uom_name, description, track_stock
+   */
+  async getProducts(opts: {
+    filters?: {
+      name?: string;
+      code?: string;
+      category_name?: string;
+      sales_price?: string;
+      purchase_price?: string;
+      uom_name?: string;
+      description?: string;
+      track_stock?: string;
+    };
+    first?: number;
+    rows?: number;
+    sortField?: string;
+    sortOrder?: number;
+  } = {}) {
+    this.ensureAuth();
+    const body = {
+      filters: {
+        name:           { matchMode: 'undefined', value: opts.filters?.name ?? '' },
+        global:         { matchMode: 'undefined', value: '' },
+        code:           { matchMode: 'undefined', value: opts.filters?.code ?? '' },
+        sales_price:    { matchMode: 'undefined', value: opts.filters?.sales_price ?? '' },
+        category_name:  { matchMode: 'undefined', value: opts.filters?.category_name ?? '' },
+        purchase_price: { matchMode: 'undefined', value: opts.filters?.purchase_price ?? '' },
+        uom_name:       { matchMode: 'undefined', value: opts.filters?.uom_name ?? '' },
+        track_stock:    { matchMode: 'undefined', value: opts.filters?.track_stock ?? '' },
+        grey:           { matchMode: 'undefined', value: '' },
+        description:    { matchMode: 'undefined', value: opts.filters?.description ?? '' },
+      },
+      first: opts.first ?? 0,
+      rows: opts.rows ?? 10,
+      sortOrder: opts.sortOrder ?? -1,
+      sortField: opts.sortField ?? 'created_at',
+    };
+    const response = await this.axios.post('/api/v1/inventory/products/all', body);
+    return response.data;
+  }
+
+  /** Get single product. Endpoint: GET /api/v1/invoicer/products/{uuid} */
+  async getProduct(productId: string) {
+    this.ensureAuth();
+    const response = await this.axios.get(`/api/v1/invoicer/products/${productId}`);
+    return response.data;
+  }
+
+  /** Get next SKU code. Endpoint: GET /api/v1/invoicer/products/sku/ */
+  async getNextProductSku() {
+    this.ensureAuth();
+    const response = await this.axios.get('/api/v1/invoicer/products/sku/');
+    return response.data;
+  }
+
+  /**
+   * Create product. Endpoint: POST /api/v1/invoicer/products
+   * Required: code, name. Optional: description, sales_price, purchase_price, category_id, uom_id, track_stock
+   */
+  async createProduct(data: {
+    code: string;
+    name: string;
+    description?: string;
+    sales_price?: number;
+    purchase_price?: number;
+    category_id?: string;
+    uom_id?: string;
+    track_stock?: number;
+  }) {
+    this.ensureAuth();
+    const response = await this.axios.post('/api/v1/invoicer/products', data);
+    return response.data;
+  }
+
+  /**
+   * Update product. Endpoint: PUT /api/v1/invoicer/products/{uuid}
+   * Required: code, name. Others optional.
+   */
+  async updateProduct(productId: string, data: {
+    code?: string;
+    name?: string;
+    description?: string;
+    sales_price?: number;
+    purchase_price?: number;
+    category_id?: string;
+    uom_id?: string;
+    track_stock?: number;
+  }) {
+    this.ensureAuth();
+    const response = await this.axios.put(`/api/v1/invoicer/products/${productId}`, data);
+    return response.data;
+  }
+
+  /** Delete product. Endpoint: DELETE /api/v1/invoicer/products/{uuid} */
+  async deleteProduct(productId: string) {
+    this.ensureAuth();
+    const response = await this.axios.delete(`/api/v1/invoicer/products/${productId}`);
+    return response.data;
+  }
+
+  /** Get product categories. Endpoint: GET /api/v1/invoicer/categories */
+  async getProductCategories() {
+    this.ensureAuth();
+    const response = await this.axios.get('/api/v1/invoicer/categories');
+    return response.data;
+  }
+
+  /**
+   * List units of measure. Endpoint: POST /api/v2/saturn/uom/all
+   * 150 global units available.
+   */
+  async getUnitsOfMeasure(opts: { first?: number; rows?: number } = {}) {
+    this.ensureAuth();
+    const body = {
+      filters: { global: { matchMode: 'undefined', value: '' } },
+      first: opts.first ?? 0,
+      rows: opts.rows ?? 50,
+      sortOrder: -1,
+      sortField: 'created_at',
+    };
+    const response = await this.axios.post('/api/v2/saturn/uom/all', body);
+    return response.data;
+  }
 }

@@ -85,11 +85,34 @@ const EXPECTED_TOOLS = [
   'paperid_get_next_partner_number',
   'paperid_search_partners',
   'paperid_create_invoice',
+  'paperid_update_invoice',
+  'paperid_publish_invoice',
   'paperid_get_invoice',
   'paperid_get_invoice_pdf',
   'paperid_send_invoice',
   'paperid_generate_invoice_qris',
   'paperid_delete_invoice',
+  // payment tools
+  'paperid_get_payment_number',
+  'paperid_get_finance_accounts',
+  'paperid_get_payment_methods',
+  'paperid_create_payment',
+  'paperid_get_payments',
+  'paperid_get_payment_pdf',
+  'paperid_send_payment',
+  'paperid_delete_payment',
+  // PaperPay In
+  'paperid_get_paperpay_balance',
+  'paperid_get_digital_payment_transactions',
+  // product tools
+  'paperid_get_products',
+  'paperid_get_product',
+  'paperid_get_next_product_sku',
+  'paperid_create_product',
+  'paperid_update_product',
+  'paperid_delete_product',
+  'paperid_get_product_categories',
+  'paperid_get_units_of_measure',
 ];
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
