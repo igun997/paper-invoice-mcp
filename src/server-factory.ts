@@ -387,6 +387,39 @@ const tools: Tool[] = [
     },
   },
   {
+    name: 'paperid_get_paperpay_balance',
+    description: 'Get PaperPay In balance (Saldo Aktif, Dana Sedang Diproses, credit/debit totals)',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'paperid_get_digital_payment_transactions',
+    description: 'List PaperPay In digital payment transactions (reconcile/all). Includes QRIS, Credit Card, Bank Transfer, e-wallet payments.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        filters: {
+          type: 'object',
+          properties: {
+            partner_name:     { type: 'string', description: 'Buyer/partner name filter' },
+            payment_method:   { type: 'array', items: { type: 'string' }, description: 'e.g. ["QRIS","Credit Card"]' },
+            payment_provider: { type: 'array', items: { type: 'string' }, description: 'e.g. ["mastercard","blibli"]' },
+            external_id:      { type: 'string', description: 'Reference number (No. Referensi)' },
+            status:           { type: 'array', items: { type: 'string' }, description: 'e.g. ["POSTED"]' },
+            transaction_date: {
+              type: 'object',
+              properties: { from: { type: 'string' }, to: { type: 'string' } },
+            },
+          },
+        },
+        first:      { type: 'number', description: 'Start index (default: 0)' },
+        rows:       { type: 'number', description: 'Page size (default: 10)' },
+        sortField:  { type: 'string', description: 'default: transaction_date' },
+        sortOrder:  { type: 'number', description: '-1=desc (default), 1=asc' },
+        status:     { type: 'string', description: 'settled | pending (default: settled)' },
+      },
+    },
+  },
+  {
     name: 'paperid_get_partner',
     description: 'Get a single partner by UUID',
     inputSchema: {
@@ -1491,6 +1524,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'paperid_delete_payment': {
         const { paymentId } = args as { paymentId: string };
         const result = await client.deletePayment(paymentId);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_paperpay_balance': {
+        const result = await client.getPaperPayBalance();
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'paperid_get_digital_payment_transactions': {
+        const { filters, first, rows, sortField, sortOrder, status } = args as {
+          filters?: any; first?: number; rows?: number;
+          sortField?: string; sortOrder?: number; status?: string;
+        };
+        const result = await client.getDigitalPaymentTransactions({ filters, first, rows, sortField, sortOrder, status });
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
       }
 

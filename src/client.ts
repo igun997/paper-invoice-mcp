@@ -907,6 +907,64 @@ export class PaperIdClient {
     return response.data;
   }
 
+  /**
+   * Get PaperPay In balance (Saldo Aktif).
+   * Returns { balance, credit_balance, debit_balance, on_hold_amount, on_hold_amount_disbursement }
+   * Endpoint: GET /api/v1/payment-api/disbursement/finance-account
+   */
+  async getPaperPayBalance() {
+    this.ensureAuth();
+    const response = await this.axios.get('/api/v1/payment-api/disbursement/finance-account');
+    return response.data;
+  }
+
+  /**
+   * Get PaperPay In digital payment transactions.
+   * Endpoint: POST /api/v1/payment-api/reconcile/all
+   */
+  async getDigitalPaymentTransactions(opts: {
+    filters?: {
+      partner_name?: string;
+      payment_method?: string[];
+      payment_provider?: string[];
+      sub_total?: number;
+      transaction_fee?: number;
+      disbursed_amount?: number;
+      transaction_date?: { from?: string; to?: string };
+      external_id?: string;
+      status?: string[];
+    };
+    first?: number;
+    rows?: number;
+    sortField?: string;
+    sortOrder?: number;
+    status?: string;  // 'settled' | 'pending' | 'all'
+  } = {}) {
+    this.ensureAuth();
+    const body = {
+      filters: {
+        partner_name:     { value: opts.filters?.partner_name ?? '' },
+        payment_method:   { value: opts.filters?.payment_method ?? [] },
+        payment_provider: { value: opts.filters?.payment_provider ?? [] },
+        sub_total:        { value: opts.filters?.sub_total ?? 0 },
+        transaction_fee:  { value: opts.filters?.transaction_fee ?? 0 },
+        disbursed_amount: { value: opts.filters?.disbursed_amount ?? 0 },
+        transaction_date: { from: opts.filters?.transaction_date?.from ?? '', to: opts.filters?.transaction_date?.to ?? '' },
+        external_id:      { value: opts.filters?.external_id ?? '' },
+        status:           { value: opts.filters?.status ?? [] },
+        cost_bearer:      { value: [] },
+        parent_external_id: { value: '' },
+      },
+      first: opts.first ?? 0,
+      rows: opts.rows ?? 10,
+      sortField: opts.sortField ?? 'transaction_date',
+      sortOrder: opts.sortOrder ?? -1,
+      status: opts.status ?? 'settled',
+    };
+    const response = await this.axios.post('/api/v1/payment-api/reconcile/all', body);
+    return response.data;
+  }
+
   /** Known payment method UUIDs (captured from real API — company-specific but typically stable) */
   static readonly PAYMENT_METHODS: Record<string, string> = {
     'Memo':            '06064a30-b521-41dd-84f5-d5ef7e0f6077',
