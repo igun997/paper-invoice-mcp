@@ -99,7 +99,32 @@ const tools: Tool[] = [
       properties: {
         filters: {
           type: 'object',
-          description: 'Filter criteria (number, client_name, status, dates, etc.)',
+          description: 'Filter criteria',
+          properties: {
+            number:             { type: 'string', description: 'Invoice number (partial match)' },
+            global:             { type: 'string', description: 'Global text search across all fields' },
+            client_name:        { type: 'array', items: { type: 'string' }, description: 'Partner/client name(s)' },
+            client_uuid:        { type: 'array', items: { type: 'string' }, description: 'Partner UUID(s)' },
+            status:             { type: 'array', items: { type: 'number' }, description: 'Payment status: 0=unpaid,1=paid,2=partial,3=overdue,4=draft,5=cancelled' },
+            send_status:        { type: 'array', items: { type: 'number' }, description: 'Send status: 0=not sent,1=sent' },
+            workflow_status:    { type: 'array', items: { type: 'string' }, description: 'Workflow/approval status' },
+            document_reference: { type: 'string', description: 'Document reference number' },
+            object_tags:        { type: 'array', items: { type: 'string' }, description: 'Tag names' },
+            invoice_total:      { type: 'string', description: 'Invoice total amount (exact or partial)' },
+            amount_due:         { type: 'string', description: 'Amount due search' },
+            start_invoice_date: { type: 'string', description: 'Invoice date range start (YYYY-MM-DD)' },
+            end_invoice_date:   { type: 'string', description: 'Invoice date range end (YYYY-MM-DD)' },
+            start_due_date:     { type: 'string', description: 'Due date range start (YYYY-MM-DD)' },
+            end_due_date:       { type: 'string', description: 'Due date range end (YYYY-MM-DD)' },
+            document_type:      { type: 'array', items: { type: 'string' }, description: 'Document type filter' },
+            user_categories:    { type: 'array', items: { type: 'string' }, description: 'Category UUIDs' },
+            reservation_number: { type: 'string', description: 'Reservation number' },
+            stamp_status:       { type: 'array', items: { type: 'string' }, description: 'E-stamp status' },
+            user_creator_ids:   { type: 'array', items: { type: 'string' }, description: 'Creator user UUID(s)' },
+            external_uuid:      { type: 'string', description: 'External UUID' },
+            invoice_status:     { type: 'array', items: { type: 'string' }, description: 'Invoice status codes' },
+            myinvois_status:    { type: 'array', items: { type: 'string' }, description: 'Malaysia e-invoice status' },
+          },
         },
         first: {
           type: 'number',
@@ -108,6 +133,18 @@ const tools: Tool[] = [
         rows: {
           type: 'number',
           description: 'Number of rows (default: 10)',
+        },
+        sortField: {
+          type: 'string',
+          description: 'Sort field (default: created_at). Options: created_at, invoice_date, due_date, number, status',
+        },
+        sortOrder: {
+          type: 'number',
+          description: 'Sort order: -1=descending (default), 1=ascending',
+        },
+        show: {
+          type: 'string',
+          description: 'Show: existing (default), deleted, all',
         },
       },
     },
@@ -1104,12 +1141,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'paperid_get_sales_invoices': {
-        const { filters, first, rows } = args as {
+        const { filters, first, rows, sortField, sortOrder, show } = args as {
           filters?: any;
           first?: number;
           rows?: number;
+          sortField?: string;
+          sortOrder?: number;
+          show?: 'existing' | 'deleted' | 'all';
         };
-        const result = await client.getSalesInvoices(filters, first, rows);
+        const result = await client.getSalesInvoices(filters ?? {}, first, rows, sortField, sortOrder, show);
         return {
           content: [
             {

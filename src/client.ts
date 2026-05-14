@@ -257,27 +257,75 @@ export class PaperIdClient {
     return response.data;
   }
 
-  async getSalesInvoices(filters: any = {}, first: number = 0, rows: number = 10) {
+  async getSalesInvoices(
+    filters: {
+      number?: string;           // invoice number search
+      global?: string;           // global text search
+      client_name?: string[];    // partner name(s) — array
+      client_uuid?: string[];    // partner UUID(s) — array
+      status?: number[];         // payment status: 0=unpaid,1=paid,2=partial,3=overdue,4=draft,5=cancelled
+      send_status?: number[];    // send status: 0=not sent,1=sent
+      workflow_status?: string[]; // workflow/approval status
+      document_reference?: string;
+      object_tags?: string[];    // tags
+      invoice_total?: string;    // total amount search
+      amount_due?: string;       // amount due search
+      start_invoice_date?: string; // YYYY-MM-DD
+      end_invoice_date?: string;   // YYYY-MM-DD
+      start_due_date?: string;     // YYYY-MM-DD
+      end_due_date?: string;       // YYYY-MM-DD
+      document_type?: string[];    // document type filter
+      user_categories?: string[];  // category UUIDs
+      reservation_number?: string;
+      event_date?: string[];
+      stamp_status?: string[];     // e-stamp status
+      user_creator_ids?: string[]; // creator user UUIDs
+      external_uuid?: string;
+      invoice_status?: string[];   // invoice_status field (separate from status)
+      myinvois_status?: string[];  // Malaysia e-invoice status
+    } & Record<string, any>,
+    first: number = 0,
+    rows: number = 10,
+    sortField: string = 'created_at',
+    sortOrder: number = -1,
+    show: 'existing' | 'deleted' | 'all' = 'existing',
+    includeConnections: boolean = true,
+  ) {
     this.ensureAuth();
     const response = await this.axios.post('/api/v1/invoicer/sales-invoices/all', {
       filters: {
-        number: { matchMode: 'undefined', value: '' },
-        global: { matchMode: 'undefined', value: '' },
-        client_name: { matchMode: 'undefined', value: null },
-        partner_id: { matchMode: 'undefined', value: '' },
-        status: { matchMode: 'undefined', value: [] },
-        invoice_total: { matchMode: 'undefined', value: '' },
-        send_status: { matchMode: 'undefined', value: [] },
-        start_invoice_date: { matchMode: 'undefined', value: '' },
-        end_invoice_date: { matchMode: 'undefined', value: '' },
-        ...filters,
+        number:             { matchMode: 'undefined', value: filters.number ?? '' },
+        global:             { matchMode: 'undefined', value: filters.global ?? '' },
+        client_name:        { matchMode: 'undefined', value: filters.client_name ?? [] },
+        client_uuid:        { matchMode: 'undefined', value: filters.client_uuid ?? [] },
+        status:             { matchMode: 'undefined', value: filters.status ?? [] },
+        send_status:        { matchMode: 'undefined', value: filters.send_status ?? [] },
+        workflow_status:    { matchMode: 'undefined', value: filters.workflow_status ?? [] },
+        document_reference: { matchMode: 'undefined', value: filters.document_reference ?? '' },
+        object_tags:        { matchMode: 'undefined', value: filters.object_tags ?? [] },
+        invoice_total:      { matchMode: 'undefined', value: filters.invoice_total ?? '' },
+        amount_due:         { matchMode: 'undefined', value: filters.amount_due ?? '' },
+        start_invoice_date: { matchMode: 'undefined', value: filters.start_invoice_date ?? '' },
+        end_invoice_date:   { matchMode: 'undefined', value: filters.end_invoice_date ?? '' },
+        start_due_date:     { matchMode: 'undefined', value: filters.start_due_date ?? '' },
+        end_due_date:       { matchMode: 'undefined', value: filters.end_due_date ?? '' },
+        document_type:      { matchMode: 'undefined', value: filters.document_type ?? [] },
+        user_categories:    { matchMode: 'undefined', value: filters.user_categories ?? [] },
+        reservation_number: { matchMode: 'undefined', value: filters.reservation_number ?? '' },
+        event_date:         { matchMode: 'undefined', value: filters.event_date ?? [] },
+        stamp_status:       { matchMode: 'undefined', value: filters.stamp_status ?? [] },
+        user_creator_ids:   { matchMode: 'undefined', value: filters.user_creator_ids ?? [] },
+        external_uuid:      { matchMode: 'undefined', value: filters.external_uuid ?? '' },
+        invoice_status:     { matchMode: 'undefined', value: filters.invoice_status ?? [] },
+        myinvois_status:    { matchMode: 'undefined', value: filters.myinvois_status ?? [] },
       },
       first,
       rows,
-      sortOrder: -1,
-      sortField: 'created_at',
+      sortOrder,
+      sortField,
       file_type: 'csv',
-      show: 'existing',
+      show,
+      include_connections: includeConnections,
     });
     return response.data;
   }
